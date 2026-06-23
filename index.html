@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Battel Crown Esports</title>
+    <title>Bettel Crown Esports</title>
     
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -177,7 +177,7 @@
     <div id="login-screen" class="screen active">
         <div class="bottom-glow"></div>
         <div class="login-box">
-            <div class="brand-logo">BETTEL CROWN</div>
+            <div class="brand-logo">BATTEL CROWN</div>
             <h3 id="auth-title" style="text-align: center; margin-bottom: 20px; color: white;">Login to Play</h3>
             <div class="input-group"><input type="email" id="email" placeholder="Email Address"></div>
             <div class="input-group"><input type="password" id="password" placeholder="Password"></div>
@@ -559,12 +559,27 @@
                     const mId = child.key;
                     allMatchesData[mId] = m;
                     
-                    // Status Badge Styling
+                                       // Status Badge Styling
                     let statusClass = "s-upcoming";
                     let statusTxt = "UPCOMING";
                     if(m.status === 'ongoing') { statusClass = "s-ongoing"; statusTxt = "ONGOING"; }
                     if(m.status === 'completed') { statusClass = "s-completed"; statusTxt = "COMPLETED"; }
                     if(m.status === 'cancelled') { statusClass = "s-cancelled"; statusTxt = "CANCELLED"; }
+
+                    // Dynamic Banner Logic from GitHub Pages
+                    let bannerImg = "fullmap.png"; // Default fallback
+                    let mType = m.matchType || "FULL MAP";
+                    if(mType === "FULL MAP") bannerImg = "fullmap.png";
+                    else if(mType === "SURVIVAL") bannerImg = "survival.png";
+                    else if(mType === "CS 1V1") bannerImg = "cs1v1.png";
+                    else if(mType === "CS 2V2") bannerImg = "cs2v2.png";
+                    else if(mType === "CS 4V4") bannerImg = "cs4v4.png";
+                    else if(mType === "LW 1V1") bannerImg = "lw1v1.png";
+                    else if(mType === "LW 2V2") bannerImg = "lw2v2.png";
+                    else if(mType === "CS 1V1 HEADSHOT") bannerImg = "cs1v1head.png";
+                    else if(mType === "CS 4V4 HEADSHOT") bannerImg = "cs4v4head.png";
+                    
+                    let finalBannerURL = "https://visshuff.github.io/BattelCrown_Esports/" + bannerImg;
 
                     // Check if User Joined
                     let hasJoined = false;
@@ -585,7 +600,7 @@
                         } else {
                             roomHTML = `
                                 <div class="room-details" style="display:block; border-color:var(--warning);">
-                                    <strong style="color: var(--warning)"><i class="fas fa-clock"></i> ID/Pass waiting...</strong>
+                                    <strong style="color: var(--warning)"><i class="fas fa-clock"></i> ID/Pass waiting for Admin...</strong>
                                 </div>
                             `;
                         }
@@ -601,17 +616,19 @@
                         } else {
                             btnHTML = `<button class="btn" style="background:#2a344a; color:gray;" disabled>ENTRY CLOSED</button>`;
                         }
-                        // Always allow viewing details by clicking card (except join button)
                         btnHTML += `<button class="btn" style="background:transparent; border:1px solid var(--primary); margin-top:5px; color:var(--primary)" onclick="openDetailsModal('${mId}')">VIEW DETAILS & REWARDS</button>`;
                     }
 
                     let cardHTML = `
                         <div class="match-card">
-                            <div class="match-img">
+                            <div class="match-img" style="background: url('${finalBannerURL}') center/cover no-repeat;">
                                 <div class="match-status ${statusClass}">${statusTxt}</div>
                             </div>
                             <div class="match-details">
-                                <div class="match-title">${m.title || 'Free Fire Tournament'}</div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                    <div class="match-title" style="margin:0;">${m.title || 'Free Fire Tournament'}</div>
+                                    <span style="font-size:11px; background:rgba(0,210,255,0.15); color:var(--primary); padding:2px 8px; border-radius:4px; font-weight:bold;">${mType}</span>
+                                </div>
                                 <div class="match-stats">
                                     <div class="stat-box"><i class="far fa-clock"></i><span>${m.time || '--'}</span></div>
                                     <div class="stat-box"><i class="fas fa-trophy" style="color:var(--warning)"></i><span>₹${m.prizePool || 0}</span></div>
@@ -622,6 +639,7 @@
                             </div>
                         </div>
                     `;
+
                     container.innerHTML += cardHTML;
                 });
             });
