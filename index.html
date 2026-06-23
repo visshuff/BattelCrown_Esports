@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Battel Crown Esports</title>
+    
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK (v8 compat) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #050810;
+            --bg-card: #0d121d;
+            --primary: #00d2ff;
+            --secondary: #3a7bd5;
+            --text-light: #ffffff;
+            --text-muted: #8b9bb4;
+            --success: #00e676;
+            --warning: #ffea00;
+            --danger: #ff3d00;
+            --ongoing: #00d2ff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent; /* Removes blue tap highlight */
+            outline: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* Screens */
+        .screen { display: none; padding-bottom: 80px; min-height: 100vh; animation: fadeIn 0.4s ease-in-out; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- PREMIUM LOGIN SCREEN WITH BOTTOM GLOW --- */
+        #login-screen {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            padding: 20px; height: 100vh; position: relative; overflow: hidden;
+            background-color: var(--bg-dark);
+        }
+        .bottom-glow {
+            position: absolute; bottom: -150px; left: 50%; transform: translateX(-50%);
+            width: 300px; height: 300px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 210, 255, 0.4) 0%, rgba(5, 8, 16, 0) 70%);
+            z-index: 0; pointer-events: none;
+        }
+        .login-box {
+            background: rgba(13, 18, 29, 0.85); backdrop-filter: blur(10px);
+            padding: 30px; border-radius: 15px; width: 100%; max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 210, 255, 0.1);
+            border: 1px solid rgba(0, 210, 255, 0.2); z-index: 1;
+        }
+        .brand-logo { font-size: 32px; font-weight: 800; color: var(--primary); text-align: center; margin-bottom: 20px; text-shadow: 0 0 10px rgba(0,210,255,0.5); }
+        .input-group { margin-bottom: 15px; }
+        .input-group input {
+            width: 100%; padding: 14px; border-radius: 8px;
+            border: 1px solid #2a344a; background: #0a0e17; color: white; transition: 0.3s;
+        }
+        .input-group input:focus { border-color: var(--primary); box-shadow: 0 0 8px rgba(0,210,255,0.3); }
+        
+        /* Buttons */
+        .btn {
+            width: 100%; padding: 14px; border: none; border-radius: 8px;
+            background: linear-gradient(90deg, var(--secondary) 0%, var(--primary) 100%);
+            color: white; font-weight: bold; cursor: pointer; font-size: 16px;
+            margin-top: 10px; transition: 0.2s;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn:disabled { background: #2a344a; cursor: not-allowed; color: #888; }
+        .toggle-auth { text-align: center; margin-top: 20px; color: var(--primary); font-size: 14px; cursor: pointer; font-weight: 600; }
+
+        /* Header */
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 20px; background: rgba(13, 18, 29, 0.9); backdrop-filter: blur(5px);
+            border-bottom: 1px solid rgba(0,210,255,0.1); position: sticky; top: 0; z-index: 100;
+        }
+        .header-wallet { 
+            background: #0a0e17; padding: 6px 15px; border-radius: 20px; 
+            border: 1px solid var(--primary); cursor: pointer; font-weight: bold; color: var(--primary);
+        }
+
+        /* Top Actions */
+        .top-actions { display: flex; justify-content: center; gap: 20px; padding: 20px; }
+        .action-icon {
+            width: 55px; height: 55px; border-radius: 14px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 24px; background: var(--bg-card);
+            border: 1px solid rgba(0,210,255,0.2); transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .action-icon:active { transform: scale(0.9); }
+
+        /* Dynamic Match Card */
+        .match-card {
+            background: var(--bg-card); border-radius: 15px; overflow: hidden;
+            width: 100%; max-width: 500px; margin: 0 auto 20px auto;
+            border: 1px solid rgba(0, 210, 255, 0.2); position: relative; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            transition: 0.2s; cursor: pointer;
+        }
+        .match-card:active { transform: scale(0.98); }
+        .match-img {
+            width: 100%; height: 160px; 
+            background: url('https://w0.peakpx.com/wallpaper/43/400/HD-wallpaper-free-fire-esports-logo-free-fire-esports-free-fire-esports-logo-garena-free-fire.jpg') center/cover;
+            position: relative;
+        }
+        .match-status {
+            position: absolute; top: 10px; right: 10px; padding: 4px 10px; border-radius: 20px;
+            font-size: 11px; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.8);
+        }
+        .s-upcoming { color: var(--warning); border: 1px solid var(--warning); }
+        .s-ongoing { color: var(--ongoing); border: 1px solid var(--ongoing); }
+        .s-completed { color: var(--success); border: 1px solid var(--success); }
+        .s-cancelled { color: var(--danger); border: 1px solid var(--danger); }
+        
+        .match-details { padding: 15px; }
+        .match-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: white; }
+        .match-stats { display: flex; justify-content: space-between; margin-bottom: 15px; background: #050810; padding: 10px; border-radius: 8px; }
+        .stat-box { text-align: center; font-size: 12px; color: var(--text-muted); }
+        .stat-box span { display: block; font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 4px; }
+        .room-details { display: none; background: #050810; padding: 10px; border-radius: 8px; margin-top: 10px; border: 1px dashed var(--success); text-align: center; }
+
+        /* Custom Modals (Replaces Alerts) */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 2000; 
+            justify-content: center; align-items: center; padding: 20px;
+        }
+        .modal-content {
+            background: var(--bg-card); padding: 25px; border-radius: 15px; width: 100%; max-width: 400px;
+            border: 1px solid var(--primary); animation: fadeIn 0.3s; max-height: 80vh; overflow-y: auto;
+        }
+
+        /* Match Details Tab System inside Modal */
+        .tab-headers { display: flex; border-bottom: 1px solid #2a344a; margin-bottom: 15px; }
+        .tab-head { flex: 1; text-align: center; padding: 10px; cursor: pointer; color: var(--text-muted); font-size: 14px; border-bottom: 2px solid transparent; }
+        .tab-head.active { color: var(--primary); border-bottom: 2px solid var(--primary); font-weight: bold; }
+        .tab-body { display: none; }
+        .tab-body.active { display: block; }
+
+        .reward-item, .player-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 14px; }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 65px;
+            background: rgba(13, 18, 29, 0.95); backdrop-filter: blur(10px);
+            display: flex; justify-content: space-around; align-items: center;
+            border-top: 1px solid rgba(0,210,255,0.1); z-index: 1000;
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--text-muted); cursor: pointer; font-size: 12px; transition: 0.2s; }
+        .nav-item.active { color: var(--primary); transform: translateY(-3px); }
+        .nav-item i { font-size: 20px; }
+
+        /* Utility */
+        .txn-box { background: var(--bg-card); margin: 20px; padding: 20px; border-radius: 15px; border: 1px solid rgba(0,210,255,0.1); }
+        .note { font-size: 12px; color: var(--warning); margin-top: 5px; display: block; }
+    </style>
+</head>
+<body>
+
+    <!-- AUTH SCREEN -->
+    <div id="login-screen" class="screen active">
+        <div class="bottom-glow"></div>
+        <div class="login-box">
+            <div class="brand-logo">BETTEL CROWN</div>
+            <h3 id="auth-title" style="text-align: center; margin-bottom: 20px; color: white;">Login to Play</h3>
+            <div class="input-group"><input type="email" id="email" placeholder="Email Address"></div>
+            <div class="input-group"><input type="password" id="password" placeholder="Password"></div>
+            <button class="btn" id="auth-btn" onclick="handleAuth()">Login Now</button>
+            <div class="toggle-auth" onclick="toggleAuthMode()">New user? Create an account</div>
+        </div>
+    </div>
+
+    <!-- APP HEADER -->
+    <div id="app-header" style="display: none;">
+        <div class="header">
+            <div style="font-size: 18px; font-weight: 800; color: white;">BATTEL CROWN <span style="color:var(--primary)">ESPORTS</span></div>
+            <div class="header-wallet" onclick="switchTab('wallet')">
+                <i class="fas fa-wallet"></i> ₹<span id="header-bal">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- HOME SCREEN -->
+    <div id="home-screen" class="screen">
+        <div class="top-actions">
+            <div class="action-btn" onclick="openLink('http://t.me/BettelCrown_Supportbot')">
+                <div class="action-icon" style="color: #0088cc;"><i class="fab fa-telegram-plane"></i></div>
+                <span style="font-size:12px; display:block; text-align:center; margin-top:5px;">Support</span>
+            </div>
+            <div class="action-btn" onclick="openLink('https://www.youtube.com/@visshuff')">
+                <div class="action-icon" style="color: #ff0000;"><i class="fab fa-youtube"></i></div>
+                <span style="font-size:12px; display:block; text-align:center; margin-top:5px;">YouTube</span>
+            </div>
+            <div class="action-btn" onclick="showCustomAlert('Refer & Earn system is coming soon. Stay tuned!', 'Referral')">
+                <div class="action-icon" style="color: #00e676;"><i class="fas fa-users"></i></div>
+                <span style="font-size:12px; display:block; text-align:center; margin-top:5px;">Refer</span>
+            </div>
+        </div>
+
+        <h3 style="margin: 10px 20px; font-size: 14px; color: var(--text-muted); text-transform: uppercase;">
+            <i class="fas fa-fire" style="color:var(--danger)"></i> Premium Tournaments
+        </h3>
+        
+        <div id="matches-container" style="padding: 0 20px;">
+            <!-- Matches will be loaded here dynamically from Firebase -->
+            <div style="text-align:center; padding: 20px; color: var(--text-muted);">Loading matches...</div>
+        </div>
+    </div>
+
+    <!-- WALLET SCREEN -->
+    <div id="wallet-screen" class="screen">
+        <div class="txn-box" style="text-align: center; border-color: var(--primary);">
+            <h3 style="color: var(--text-muted); font-size: 14px;">Total Balance</h3>
+            <h1 style="color: white; font-size: 40px; margin: 10px 0;">₹<span id="wallet-total">0</span></h1>
+            <div style="display: flex; justify-content: space-around; margin-top: 15px; padding-top: 15px; border-top: 1px solid #2a344a;">
+                <div><div style="font-size: 12px; color: var(--text-muted)">Winning</div><div style="font-weight: bold; color: var(--success);">₹<span id="wallet-win">0</span></div></div>
+                <div><div style="font-size: 12px; color: var(--text-muted)">Bonus</div><div style="font-weight: bold; color: var(--warning);">₹<span id="wallet-bonus">0</span></div></div>
+            </div>
+        </div>
+
+        <div class="txn-box">
+            <h3 style="margin-bottom: 15px; color: var(--success)"><i class="fas fa-plus-circle"></i> Add Money</h3>
+            <div class="input-group" style="display:flex; gap:10px;">
+                <input type="text" value="visshuthakur@fam" readonly id="upi-id">
+                <button class="btn" style="width:auto; margin:0;" onclick="copyUPI()"><i class="fas fa-copy"></i></button>
+            </div>
+            <div class="input-group"><input type="number" id="dep-amount" placeholder="Enter Amount (Min ₹20)"></div>
+            <div class="input-group"><input type="text" id="dep-utr" placeholder="Enter UTR / Ref. ID"></div>
+            <span class="note">Minimum deposit: ₹20 | Processing in 1 Hour</span>
+            <button class="btn" onclick="submitDeposit()">Submit Request</button>
+        </div>
+
+        <div class="txn-box">
+            <h3 style="margin-bottom: 15px; color: var(--danger)"><i class="fas fa-university"></i> Withdraw Winning</h3>
+            <div class="input-group"><input type="number" id="with-amount" placeholder="Enter Amount"></div>
+            <div class="input-group"><input type="text" id="with-upi" placeholder="Enter Your UPI ID"></div>
+            <span class="note">Minimum withdraw: ₹30 | Processing in 2 Hours</span>
+            <button class="btn" onclick="submitWithdraw()" style="background:var(--danger)">Submit Withdraw</button>
+        </div>
+
+        <div class="txn-box">
+            <h3 style="margin-bottom: 15px;">Transactions</h3>
+            <div id="txn-list" style="max-height: 200px; overflow-y:auto;"></div>
+        </div>
+    </div>
+
+    <!-- PROFILE SCREEN -->
+    <div id="profile-screen" class="screen">
+        <div class="txn-box" style="text-align: center; margin-top: 30px;">
+            <div style="font-size: 60px; color: var(--primary); margin-bottom: 15px;"><i class="fas fa-user-shield"></i></div>
+            <div class="input-group">
+                <label style="display:block; text-align:left; margin-bottom:5px; color:var(--text-muted)">Display Name</label>
+                <input type="text" id="profile-name" placeholder="Enter your name">
+            </div>
+            <button class="btn" onclick="saveProfile()">Update Profile</button>
+            <br><br>
+            <button class="btn" style="background: transparent; border: 1px solid var(--danger); color: var(--danger);" onclick="logout()">Secure Logout</button>
+        </div>
+    </div>
+
+    <!-- BOTTOM NAVIGATION -->
+    <div id="bottom-nav" class="bottom-nav" style="display: none;">
+        <div class="nav-item active" onclick="switchTab('home')" id="nav-home"><i class="fas fa-home"></i><span>Home</span></div>
+        <div class="nav-item" onclick="switchTab('wallet')" id="nav-wallet"><i class="fas fa-wallet"></i><span>Wallet</span></div>
+        <div class="nav-item" onclick="switchTab('profile')" id="nav-profile"><i class="fas fa-user"></i><span>Profile</span></div>
+    </div>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Custom Alert Modal (Fixes Sketchware issues) -->
+    <div id="custom-alert" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <div style="font-size: 40px; color: var(--primary); margin-bottom: 10px;"><i class="fas fa-info-circle"></i></div>
+            <h3 id="alert-title" style="color: white; margin-bottom: 10px;">Notification</h3>
+            <p id="alert-msg" style="color: var(--text-muted); margin-bottom: 20px; font-size: 15px;"></p>
+            <button class="btn" onclick="closeCustomAlert()">OK, Got it</button>
+        </div>
+    </div>
+
+    <!-- Join Match Modal -->
+    <div id="join-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: var(--primary); margin-bottom: 10px;">Join Tournament</h3>
+            <p style="font-size:13px; margin-bottom:15px; color:var(--text-muted)">
+                Entry Fee: <strong style="color:white">₹<span id="join-fee">0</span></strong><br>
+                (Will be deducted from your Total Balance)
+            </p>
+            <div class="input-group">
+                <input type="text" id="game-name" placeholder="Enter your Free Fire Name">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn" style="background:transparent; border:1px solid #2a344a" onclick="closeJoinModal()">Cancel</button>
+                <button class="btn" id="confirm-join-btn" onclick="processJoin()">Confirm Join</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Details Modal (Rewards & Results) -->
+    <div id="details-modal" class="modal">
+        <div class="modal-content" style="padding: 0; overflow: hidden;">
+            <div style="padding: 15px; background: #050810; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="color: white; font-size: 16px;">Match Details</h3>
+                <i class="fas fa-times" style="color:var(--danger); cursor:pointer; font-size: 20px;" onclick="closeDetailsModal()"></i>
+            </div>
+            
+            <div class="tab-headers">
+                <div class="tab-head active" onclick="switchDetailsTab('rewards')">Rewards</div>
+                <div class="tab-head" onclick="switchDetailsTab('players')">Joined & Results</div>
+            </div>
+
+            <div style="padding: 15px; max-height: 300px; overflow-y:auto;">
+                <!-- Rewards Tab -->
+                <div id="tab-rewards" class="tab-body active">
+                    <div id="rewards-list-container">
+                        <p style="text-align:center; color:gray; font-size:13px;">Rewards info will appear here.</p>
+                    </div>
+                </div>
+
+                <!-- Players & Results Tab -->
+                <div id="tab-players" class="tab-body">
+                    <div id="players-list-container">
+                        <p style="text-align:center; color:gray; font-size:13px;">No players joined yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SCRIPTS ================= -->
+    <script>
+        // 1. FIREBASE CONFIGURATION
+        const firebaseConfig = {
+            apiKey: "AIzaSyAVg3Xe5nN7v39wGopI5AsYcacwDBdlHhU",
+            authDomain: "bettel-crown.firebaseapp.com",
+            databaseURL: "https://bettel-crown-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "bettel-crown",
+            storageBucket: "bettel-crown.firebasestorage.app",
+            messagingSenderId: "273926510880",
+            appId: "1:273926510880:android:6c657a61e7697f80ac1f45"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        let isLoginMode = true;
+        let currentUser = null;
+        let userData = null;
+        let allMatchesData = {};
+        
+        let targetMatchId = null; 
+        let targetMatchFee = 0;
+        let isProcessingJoin = false; // Prevent multiple clicks
+
+        // --- UI & UTILITY FUNCTIONS ---
+        function switchTab(tab) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(`${tab}-screen`).classList.add('active');
+            if(document.getElementById(`nav-${tab}`)) document.getElementById(`nav-${tab}`).classList.add('active');
+        }
+
+        function showCustomAlert(msg, title = "Notification") {
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-msg').innerText = msg;
+            document.getElementById('custom-alert').style.display = 'flex';
+        }
+
+        function closeCustomAlert() {
+            document.getElementById('custom-alert').style.display = 'none';
+        }
+
+        function openLink(url) {
+            window.open(url, '_blank');
+        }
+
+        // --- AUTHENTICATION ---
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            document.getElementById('auth-title').innerText = isLoginMode ? "Login to Play" : "Create Account";
+            document.getElementById('auth-btn').innerText = isLoginMode ? "Login Now" : "Sign Up";
+            document.querySelector('.toggle-auth').innerText = isLoginMode ? "New user? Create an account" : "Already have an account? Login";
+        }
+
+        function handleAuth() {
+            const email = document.getElementById('email').value.trim();
+            const pass = document.getElementById('password').value;
+            if(!email || !pass) return showCustomAlert("Please enter email and password!", "Error");
+
+            const btn = document.getElementById('auth-btn');
+            btn.disabled = true; btn.innerText = "Processing...";
+
+            if(isLoginMode) {
+                auth.signInWithEmailAndPassword(email, pass).catch(err => {
+                    showCustomAlert(err.message, "Login Failed");
+                    btn.disabled = false; btn.innerText = "Login Now";
+                });
+            } else {
+                auth.createUserWithEmailAndPassword(email, pass).then(cred => {
+                    db.ref(`users/${cred.user.uid}`).set({
+                        name: "Player_" + Math.floor(Math.random()*9999),
+                        balance: { total: 0, winning: 0, bonus: 0 },
+                        status: "active"
+                    });
+                }).catch(err => {
+                    showCustomAlert(err.message, "Signup Failed");
+                    btn.disabled = false; btn.innerText = "Sign Up";
+                });
+            }
+        }
+
+        function logout() { auth.signOut(); }
+
+        auth.onAuthStateChanged(user => {
+            const btn = document.getElementById('auth-btn');
+            btn.disabled = false; btn.innerText = isLoginMode ? "Login Now" : "Sign Up";
+
+            if (user) {
+                currentUser = user;
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('login-screen').classList.remove('active');
+                document.getElementById('app-header').style.display = 'block';
+                document.getElementById('bottom-nav').style.display = 'flex';
+                switchTab('home');
+                loadUserData();
+                loadMatchesDynamic();
+            } else {
+                currentUser = null; userData = null;
+                document.getElementById('app-header').style.display = 'none';
+                document.getElementById('bottom-nav').style.display = 'none';
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('login-screen').classList.add('active');
+            }
+        });
+
+        // --- DATA LOADING & BAN CHECK ---
+        function loadUserData() {
+            db.ref(`users/${currentUser.uid}`).on('value', snap => {
+                if(!snap.exists()) return;
+                userData = snap.val();
+
+                // BAN ENFORCEMENT
+                if(userData.status === 'banned') {
+                    auth.signOut();
+                    showCustomAlert("Your account has been restricted by Admin. Contact Support.", "Account Banned");
+                    return;
+                }
+
+                const bal = userData.balance || { total: 0, winning: 0, bonus: 0 };
+                document.getElementById('header-bal').innerText = bal.total;
+                document.getElementById('wallet-total').innerText = bal.total;
+                document.getElementById('wallet-win').innerText = bal.winning;
+                document.getElementById('wallet-bonus').innerText = bal.bonus;
+                document.getElementById('profile-name').value = userData.name || "";
+            });
+
+            // Load Transactions
+            db.ref(`transactions/${currentUser.uid}`).on('value', snap => {
+                const list = document.getElementById('txn-list');
+                list.innerHTML = "";
+                if(!snap.exists()) { list.innerHTML = "<p style='color:gray; font-size:12px;'>No recent transactions.</p>"; return; }
+                
+                let txns = [];
+                snap.forEach(child => { txns.push(child.val()); });
+                txns.reverse(); // Latest first
+
+                txns.forEach(t => {
+                    let c = t.status === 'success' ? 'var(--success)' : (t.status === 'rejected' ? 'var(--danger)' : 'var(--warning)');
+                    list.innerHTML += `
+                        <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                            <div><strong style="text-transform:capitalize;">${t.type}</strong><br><small style="color:var(--text-muted)">${new Date(t.timestamp).toLocaleDateString()}</small></div>
+                            <div style="text-align:right;"><strong>₹${t.amount}</strong><br><small style="color:${c}; text-transform:uppercase;">${t.status}</small></div>
+                        </div>
+                    `;
+                });
+            });
+        }
+
+        // --- WALLET FUNCTIONS ---
+        function copyUPI() {
+            const upi = document.getElementById('upi-id');
+            upi.select(); document.execCommand("copy");
+            showCustomAlert("Admin UPI ID Copied! Pay here and submit UTR.", "Copied");
+        }
+
+        function submitDeposit() {
+            const amt = parseInt(document.getElementById('dep-amount').value);
+            const utr = document.getElementById('dep-utr').value.trim();
+            if(!amt || amt < 20) return showCustomAlert("Minimum deposit is ₹20", "Invalid Amount");
+            if(!utr) return showCustomAlert("Please enter valid UTR / Ref. number", "Missing UTR");
+
+            db.ref(`transactions/${currentUser.uid}`).push().set({
+                type: "deposit", amount: amt, utr: utr, status: "processing", timestamp: firebase.database.ServerValue.TIMESTAMP
+            }).then(() => {
+                showCustomAlert("Deposit request submitted! We will verify and add to your wallet within 1 hour.", "Success");
+                document.getElementById('dep-amount').value = ""; document.getElementById('dep-utr').value = "";
+            });
+        }
+
+        function submitWithdraw() {
+            const amt = parseInt(document.getElementById('with-amount').value);
+            const upi = document.getElementById('with-upi').value.trim();
+            const winBal = userData?.balance?.winning || 0;
+            
+            if(!amt || amt < 30) return showCustomAlert("Minimum withdraw is ₹30", "Invalid Amount");
+            if(amt > winBal) return showCustomAlert("Insufficient Winning Balance!", "Error");
+            if(!upi) return showCustomAlert("Please enter your UPI ID", "Missing UPI");
+
+            db.ref(`transactions/${currentUser.uid}`).push().set({
+                type: "withdraw", amount: amt, upi: upi, status: "pending", timestamp: firebase.database.ServerValue.TIMESTAMP
+            }).then(() => {
+                let newWin = winBal - amt;
+                let newTotal = (userData.balance.total) - amt;
+                db.ref(`users/${currentUser.uid}/balance`).update({ winning: newWin, total: newTotal });
+                showCustomAlert("Withdraw request submitted! Amount will be transferred within 2 Hours.", "Success");
+                document.getElementById('with-amount').value = ""; document.getElementById('with-upi').value = "";
+            });
+        }
+
+        function saveProfile() {
+            const name = document.getElementById('profile-name').value.trim();
+            if(name) {
+                db.ref(`users/${currentUser.uid}`).update({ name: name })
+                .then(() => showCustomAlert("Profile Updated Successfully!", "Success"));
+            }
+        }
+
+        // --- DYNAMIC MATCHES LOGIC ---
+        function loadMatchesDynamic() {
+            db.ref('matches').on('value', snap => {
+                const container = document.getElementById('matches-container');
+                container.innerHTML = "";
+                allMatchesData = {};
+                
+                if(!snap.exists()) {
+                    container.innerHTML = "<p style='text-align:center; color:var(--text-muted);'>No upcoming matches right now.</p>";
+                    return;
+                }
+
+                snap.forEach(child => {
+                    const m = child.val();
+                    const mId = child.key;
+                    allMatchesData[mId] = m;
+                    
+                    // Status Badge Styling
+                    let statusClass = "s-upcoming";
+                    let statusTxt = "UPCOMING";
+                    if(m.status === 'ongoing') { statusClass = "s-ongoing"; statusTxt = "ONGOING"; }
+                    if(m.status === 'completed') { statusClass = "s-completed"; statusTxt = "COMPLETED"; }
+                    if(m.status === 'cancelled') { statusClass = "s-cancelled"; statusTxt = "CANCELLED"; }
+
+                    // Check if User Joined
+                    let hasJoined = false;
+                    if(m.players && m.players[currentUser.uid]) hasJoined = true;
+                    
+                    let btnHTML = '';
+                    let roomHTML = '';
+
+                    if(hasJoined) {
+                        btnHTML = `<button class="btn" style="background:#2a344a; color:white;" onclick="openDetailsModal('${mId}')">ALREADY JOINED - VIEW REWARDS</button>`;
+                        if(m.roomId && m.roomId !== "") {
+                            roomHTML = `
+                                <div class="room-details" style="display:block;">
+                                    <strong style="color: var(--primary)">Room ID:</strong> ${m.roomId}<br>
+                                    <strong style="color: var(--primary)">Pass:</strong> ${m.roomPass}
+                                </div>
+                            `;
+                        } else {
+                            roomHTML = `
+                                <div class="room-details" style="display:block; border-color:var(--warning);">
+                                    <strong style="color: var(--warning)"><i class="fas fa-clock"></i> ID/Pass waiting...</strong>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        // Not joined yet
+                        if(m.status === 'upcoming' || m.status === 'active') {
+                            let seatsLeft = (m.maxSpace || 50) - (m.joinedCount || 0);
+                            if(seatsLeft <= 0) {
+                                btnHTML = `<button class="btn" style="background:var(--danger);" disabled>MATCH FULL</button>`;
+                            } else {
+                                btnHTML = `<button class="btn" onclick="initiateJoin('${mId}', ${m.entryFee})">PLAY NOW - ₹${m.entryFee}</button>`;
+                            }
+                        } else {
+                            btnHTML = `<button class="btn" style="background:#2a344a; color:gray;" disabled>ENTRY CLOSED</button>`;
+                        }
+                        // Always allow viewing details by clicking card (except join button)
+                        btnHTML += `<button class="btn" style="background:transparent; border:1px solid var(--primary); margin-top:5px; color:var(--primary)" onclick="openDetailsModal('${mId}')">VIEW DETAILS & REWARDS</button>`;
+                    }
+
+                    let cardHTML = `
+                        <div class="match-card">
+                            <div class="match-img">
+                                <div class="match-status ${statusClass}">${statusTxt}</div>
+                            </div>
+                            <div class="match-details">
+                                <div class="match-title">${m.title || 'Free Fire Tournament'}</div>
+                                <div class="match-stats">
+                                    <div class="stat-box"><i class="far fa-clock"></i><span>${m.time || '--'}</span></div>
+                                    <div class="stat-box"><i class="fas fa-trophy" style="color:var(--warning)"></i><span>₹${m.prizePool || 0}</span></div>
+                                    <div class="stat-box"><i class="fas fa-users" style="color:var(--ongoing)"></i><span>${m.joinedCount || 0}/${m.maxSpace || 50}</span></div>
+                                </div>
+                                ${btnHTML}
+                                ${roomHTML}
+                            </div>
+                        </div>
+                    `;
+                    container.innerHTML += cardHTML;
+                });
+            });
+        }
+
+        // --- MATCH DETAILS / REWARDS MODAL ---
+        function openDetailsModal(matchId) {
+            const m = allMatchesData[matchId];
+            if(!m) return;
+            
+            // Build Rewards
+            const rewList = document.getElementById('rewards-list-container');
+            if(m.rewards) {
+                let rHTML = '';
+                // rewards expected as array from admin or object
+                Object.keys(m.rewards).forEach(k => {
+                    rHTML += `<div class="reward-item"><span>${m.rewards[k].title}</span><strong style="color:var(--warning)">₹${m.rewards[k].amount}</strong></div>`;
+                });
+                rewList.innerHTML = rHTML;
+            } else {
+                rewList.innerHTML = `<p style="text-align:center; color:gray; font-size:13px; padding:10px;">Prize breakdown not updated yet.</p>`;
+            }
+
+            // Build Players & Winnings
+            const pList = document.getElementById('players-list-container');
+            if(m.players) {
+                let pHTML = '';
+                Object.keys(m.players).forEach(uid => {
+                    let pData = m.players[uid];
+                    let winTxt = pData.wonAmount ? `<strong style="color:var(--success)">Won ₹${pData.wonAmount}</strong>` : `<span style="color:gray; font-size:12px;">--</span>`;
+                    pHTML += `
+                        <div class="player-item">
+                            <span><i class="fas fa-user" style="color:var(--primary); margin-right:5px;"></i> ${pData.gameName}</span>
+                            ${m.status === 'completed' ? winTxt : ''}
+                        </div>
+                    `;
+                });
+                pList.innerHTML = pHTML;
+            } else {
+                pList.innerHTML = `<p style="text-align:center; color:gray; font-size:13px; padding:10px;">No players joined yet.</p>`;
+            }
+
+            document.getElementById('details-modal').style.display = 'flex';
+        }
+
+        function closeDetailsModal() { document.getElementById('details-modal').style.display = 'none'; }
+        
+        function switchDetailsTab(tab) {
+            document.querySelectorAll('.tab-head').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-body').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+        }
+
+        // --- JOINING LOGIC ---
+        function initiateJoin(mId, fee) {
+            targetMatchId = mId; targetMatchFee = fee;
+            document.getElementById('join-fee').innerText = fee;
+            document.getElementById('game-name').value = '';
+            document.getElementById('join-modal').style.display = 'flex';
+        }
+
+        function closeJoinModal() {
+            document.getElementById('join-modal').style.display = 'none';
+            targetMatchId = null; isProcessingJoin = false;
+            document.getElementById('confirm-join-btn').innerText = "Confirm Join";
+            document.getElementById('confirm-join-btn').disabled = false;
+        }
+
+        function processJoin() {
+            if(isProcessingJoin) return; // Prevent double click
+            
+            const gameName = document.getElementById('game-name').value.trim();
+            if(!gameName) return showCustomAlert("Please enter your In-Game Name!", "Missing IGN");
+
+            let currentTotal = userData?.balance?.total || 0;
+            let currentWin = userData?.balance?.winning || 0;
+            
+            // Check if Total Balance can cover it (Total = Deposit + Winning)
+            if(currentTotal < targetMatchFee) {
+                closeJoinModal();
+                return showCustomAlert("Insufficient Balance! Please add money to your wallet.", "Failed");
+            }
+
+            isProcessingJoin = true;
+            const btn = document.getElementById('confirm-join-btn');
+            btn.disabled = true; btn.innerText = "Processing...";
+
+            // Deduction Logic: Reduce from total. If total falls below winning, cap winning.
+            let newTotal = currentTotal - targetMatchFee;
+            let newWin = currentWin;
+            if(newTotal < newWin) newWin = newTotal; 
+
+            let updates = {};
+            updates[`users/${currentUser.uid}/balance/total`] = newTotal;
+            updates[`users/${currentUser.uid}/balance/winning`] = newWin;
+            updates[`matches/${targetMatchId}/players/${currentUser.uid}`] = { gameName: gameName, joinedAt: firebase.database.ServerValue.TIMESTAMP };
+            
+            db.ref().update(updates).then(() => {
+                // Update match count safely
+                db.ref(`matches/${targetMatchId}/joinedCount`).transaction(count => (count || 0) + 1);
+                
+                closeJoinModal();
+                showCustomAlert(`Successfully joined the match as '${gameName}'! Wait for Room ID and Password before start time.`, "Match Joined");
+            }).catch(err => {
+                isProcessingJoin = false;
+                btn.disabled = false; btn.innerText = "Confirm Join";
+                showCustomAlert("Error joining match: " + err.message, "Error");
+            });
+        }
+    </script>
+</body>
+</html>
