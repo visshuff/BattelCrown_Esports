@@ -1,6 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "d744ef51-9b55-48d2-9b7c-a73e71ed4c95",
+      safari_web_id: "web.onesignal.auto.201c9c11-2835-4563-82b9-55a6f9094e87",
+      notifyButton: {
+        enable: true,
+      },
+    });
+  });
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Bettel Crown Esports</title>
